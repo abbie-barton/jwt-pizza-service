@@ -3,12 +3,27 @@ const app = require("../service");
 
 const dinerUser = { name: "pizza diner", email: "reg@test.com", password: "a" };
 let dinerUserAuthToken;
-const adminUser = { name: "常用名字", email: "a@jwt.com", password: "admin" };
 let adminUserAuthToken;
+let adminUser;
 let adminUserId;
 let date;
 let testFranchiseId;
 let testStoreId;
+
+const { Role, DB } = require("../database/database.js");
+
+async function createAdminUser() {
+  let user = { password: "toomanysecrets", roles: [{ role: Role.Admin }] };
+  user.name = randomName();
+  user.email = user.name + "@admin.com";
+
+  adminUser = await DB.addUser(user);
+  return { ...adminUser, password: "toomanysecrets" };
+}
+
+function randomName() {
+  return Math.random().toString(36).substring(2, 12);
+}
 
 beforeAll(async () => {
   dinerUser.email = Math.random().toString(36).substring(2, 12) + "@diner.com";
@@ -16,8 +31,8 @@ beforeAll(async () => {
   dinerUserAuthToken = registerRes.body.token;
   expectValidJwt(dinerUserAuthToken);
 
-  // login as existing admin user
-  const loginRes = await request(app).put("/api/auth").send(adminUser);
+  const admin = await createAdminUser();
+  const loginRes = await request(app).put("/api/auth").send(admin);
   adminUserAuthToken = loginRes.body.token;
   adminUserId = loginRes.body.user.id;
 
@@ -38,6 +53,22 @@ test("get list of franchises", async () => {
   });
 });
 
+test("create Franchise", async () => {
+  const newFranchise = {
+    name: "pizzaPocket" + date,
+    admins: [{ email: adminUser.email }],
+  };
+
+  const createRes = await request(app)
+    .post("/api/franchise")
+    .set("Authorization", `Bearer ${adminUserAuthToken}`)
+    .send(newFranchise);
+
+  testFranchiseId = createRes.body.id;
+
+  expect(createRes.status).toBe(200);
+});
+
 test("get user franchises", async () => {
   const getRes = await request(app)
     .get(`/api/franchise/${adminUserId}`)
@@ -53,22 +84,6 @@ test("get user franchises", async () => {
       }),
     ]),
   );
-});
-
-test("create Franchise", async () => {
-  const newFranchise = {
-    name: "pizzaPocket" + date,
-    admins: [{ email: adminUser.email }],
-  };
-
-  const createRes = await request(app)
-    .post("/api/franchise")
-    .set("Authorization", `Bearer ${adminUserAuthToken}`)
-    .send(newFranchise);
-
-  testFranchiseId = createRes.body.id;
-
-  expect(createRes.status).toBe(200);
 });
 
 test("fail create Franchise", async () => {
