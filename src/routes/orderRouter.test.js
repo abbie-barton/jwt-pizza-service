@@ -2,8 +2,6 @@ const request = require("supertest");
 const app = require("../service");
 
 let adminUserAuthToken;
-let adminUserId;
-let user;
 
 const { Role, DB } = require("../database/database.js");
 
@@ -24,7 +22,6 @@ beforeAll(async () => {
   const admin = await createAdminUser();
   const loginRes = await request(app).put("/api/auth").send(admin);
   adminUserAuthToken = loginRes.body.token;
-  adminUserId = loginRes.body.user.id;
 });
 
 test("get menu", async () => {
