@@ -39,20 +39,6 @@ beforeAll(async () => {
   date = Date.now();
 });
 
-test("get list of franchises", async () => {
-  const getRes = await request(app).get("/api/franchise");
-  expect(getRes.body).toMatchObject({
-    franchises: expect.arrayContaining([
-      expect.objectContaining({
-        id: expect.any(Number),
-        name: expect.any(String),
-        stores: expect.any(Array),
-      }),
-    ]),
-    more: expect.any(Boolean),
-  });
-});
-
 test("create Franchise", async () => {
   const newFranchise = {
     name: "pizzaPocket" + date,
@@ -67,6 +53,20 @@ test("create Franchise", async () => {
   testFranchiseId = createRes.body.id;
 
   expect(createRes.status).toBe(200);
+});
+
+test("get list of franchises", async () => {
+  const getRes = await request(app).get("/api/franchise");
+  expect(getRes.body).toMatchObject({
+    franchises: expect.arrayContaining([
+      expect.objectContaining({
+        id: expect.any(Number),
+        name: expect.any(String),
+        stores: expect.any(Array),
+      }),
+    ]),
+    more: expect.any(Boolean),
+  });
 });
 
 test("get user franchises", async () => {

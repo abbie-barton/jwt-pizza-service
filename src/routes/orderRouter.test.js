@@ -24,6 +24,21 @@ beforeAll(async () => {
   adminUserAuthToken = loginRes.body.token;
 });
 
+test("add item to menu", async () => {
+  const item = {
+    title: "new menu item",
+    image: "",
+    description: "it's new",
+    price: "0.0001",
+  };
+  const createRes = await request(app)
+    .put("/api/order/menu")
+    .set("Authorization", `Bearer ${adminUserAuthToken}`)
+    .send(item);
+
+  expect(createRes.status).toBe(200);
+});
+
 test("get menu", async () => {
   const getRes = await request(app).get("/api/order/menu");
 
@@ -39,21 +54,6 @@ test("get menu", async () => {
       }),
     ]),
   );
-});
-
-test("add item to menu", async () => {
-  const item = {
-    title: "new menu item",
-    image: "",
-    description: "it's new",
-    price: "0.0001",
-  };
-  const createRes = await request(app)
-    .put("/api/order/menu")
-    .set("Authorization", `Bearer ${adminUserAuthToken}`)
-    .send(item);
-
-  expect(createRes.status).toBe(200);
 });
 
 test("get orders", async () => {
