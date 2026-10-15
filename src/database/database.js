@@ -128,8 +128,8 @@ class DB {
       let strippedUsers = [];
       for (const user of users) {
         if (authUser?.isRole(Role.Admin)) {
-          const currUser = await this.getUser(user.email, user.password);
-          strippedUsers.append(currUser);
+          const currUser = await this.getUser(user.email);
+          strippedUsers.push(currUser);
         }
       }
 
@@ -144,10 +144,10 @@ class DB {
     try {
       await connection.beginTransaction();
       try {
-        await this.query(connection, `DELETE FROM user WHERE userId=?`, [
+        await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
           userId,
         ]);
-        await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
+        await this.query(connection, `DELETE FROM user WHERE id=?`, [
           userId,
         ]);
         await connection.commit();
