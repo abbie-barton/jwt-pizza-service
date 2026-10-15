@@ -114,35 +114,51 @@ class DB {
     nameFilter = nameFilter.replace(/\*/g, "%");
 
     try {
-      let franchises = await this.query(
+      let users = await this.query(
         connection,
-        `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}`,
+        `SELECT * FROM user WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}`,
         [nameFilter],
       );
 
-      const more = franchises.length > limit;
+      const more = users.length > limit;
       if (more) {
-        franchises = franchises.slice(0, limit);
+        users = users.slice(0, limit);
       }
 
-      for (const franchise of franchises) {
+      let strippedUsers = [];
+      for (const user of users) {
         if (authUser?.isRole(Role.Admin)) {
-          await this.getFranchise(franchise);
-        } else {
-          franchise.stores = await this.query(
-            connection,
-            `SELECT id, name FROM store WHERE franchiseId=?`,
-            [franchise.id],
-          );
+          const currUser = await this.getUser(user.email, user.password);
+          strippedUsers.append(currUser);
         }
       }
-      return [franchises, more];
+
+      return [strippedUsers, more];
     } finally {
       connection.end();
     }
   }
 
-  async deleteUser() {}
+  async deleteUser(userId) {
+    const connection = await this.getConnection();
+    try {
+      await connection.beginTransaction();
+      try {
+        await this.query(connection, `DELETE FROM user WHERE userId=?`, [
+          userId,
+        ]);
+        await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
+          userId,
+        ]);
+        await connection.commit();
+      } catch {
+        await connection.rollback();
+        throw new StatusCodeError("unable to delete user", 500);
+      }
+    } finally {
+      connection.end();
+    }
+  }
 
   async updateUser(userId, name, email, password) {
     const connection = await this.getConnection();

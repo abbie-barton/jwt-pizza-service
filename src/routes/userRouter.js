@@ -86,17 +86,24 @@ userRouter.delete(
   "/:userId",
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
-    res.json({ message: "not implemented" });
+    const userId = Number(req.params.userId);
+    await DB.deleteUser(userId);
+    res.json({ message: "user deleted" });
   }),
 );
 
 // listUsers
 userRouter.get(
-  '/',
+  "/",
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
-    const [users, more] = await DB.getUsers(req.user, req.query.page, req.query.limit, req.query.name);
-    res.json({});
+    const [users, more] = await DB.getUsers(
+      req.user,
+      req.query.page,
+      req.query.limit,
+      req.query.name,
+    );
+    res.json({ users, more });
   }),
 );
 
