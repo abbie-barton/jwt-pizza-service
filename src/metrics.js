@@ -5,6 +5,8 @@ const methodCounts = { GET: 0, POST: 0, PUT: 0, DELETE: 0 };
 let totalRequests = 0;
 let latencyTime = 0;
 let latencyCount = 0;
+let pizzaLatencyTime = 0;
+let pizzaLatencyCount = 0;
 const activeUsers = new Map();
 const ACTIVE_MS = 300000; // 5 mins
 
@@ -49,16 +51,34 @@ setInterval(() => {
   metrics.push(createMetric("latency", latencyAvg, "ms", "gauge", "asInt", {}));
   latencyTime = 0;
   latencyCount = 0;
+  // pizza latency
+  if (pizzaLatencyCount > 0) {
+    const pizzaLatencyAvg = Math.round(pizzaLatencyTime / pizzaLatencyCount);
+    metrics.push(
+      createMetric(
+        "pizza_latency",
+        pizzaLatencyAvg,
+        "ms",
+        "gauge",
+        "asInt",
+        {},
+      ),
+    );
+  }
+  pizzaLatencyTime = 0;
+  pizzaLatencyCount = 0;
   // active users
   activeUsers.forEach((lastSeen, userId) => {
     if (lastSeen < Date.now() - ACTIVE_MS) {
       activeUsers.delete(userId);
     }
   });
-  metrics.push(createMetric("active_users", activeUsers.size, "1", "gauge", "asInt", {}))
+  metrics.push(
+    createMetric("active_users", activeUsers.size, "1", "gauge", "asInt", {}),
+  );
 
   sendMetricToGrafana(metrics);
-}, 10000);
+}, 10000).unref(); // don't keep the process alive just for metrics (lets Jest exit)
 
 function createMetric(
   metricName,
@@ -131,4 +151,9 @@ function sendMetricToGrafana(metrics) {
     });
 }
 
-module.exports = { requestTracker };
+function pizzaCreationLatency(ms) {
+  pizzaLatencyTime += ms;
+  pizzaLatencyCount += 1;
+}
+
+module.exports = { requestTracker, pizzaCreationLatency };
