@@ -5,6 +5,8 @@ const methodCounts = { GET: 0, POST: 0, PUT: 0, DELETE: 0 };
 let totalRequests = 0;
 let latencyTime = 0;
 let latencyCount = 0;
+const activeUsers = new Map();
+const ACTIVE_MS = 300000; // 5 mins
 
 // Middleware to track requests
 function requestTracker(req, res, next) {
@@ -17,6 +19,9 @@ function requestTracker(req, res, next) {
     const time = Date.now() - start;
     latencyTime += time;
     latencyCount += 1;
+    if (req.user) {
+      activeUsers.set(req.user.id, Date.now());
+    }
   });
   next();
 }
@@ -39,12 +44,18 @@ setInterval(() => {
     );
   });
   // latency
-  const latencyAvg = latencyCount > 0 ? Math.round(latencyTime / latencyCount) : 0;
-  metrics.push(
-    createMetric("latency", latencyAvg, "ms", "gauge", "asInt", {}),
-  );
+  const latencyAvg =
+    latencyCount > 0 ? Math.round(latencyTime / latencyCount) : 0;
+  metrics.push(createMetric("latency", latencyAvg, "ms", "gauge", "asInt", {}));
   latencyTime = 0;
   latencyCount = 0;
+  // active users
+  activeUsers.forEach((lastSeen, userId) => {
+    if (lastSeen < Date.now() - ACTIVE_MS) {
+      activeUsers.delete(userId);
+    }
+  });
+  metrics.push(createMetric("active_users", activeUsers.size, "1", "gauge", "asInt", {}))
 
   sendMetricToGrafana(metrics);
 }, 10000);
