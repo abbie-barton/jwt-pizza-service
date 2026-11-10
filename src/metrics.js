@@ -9,9 +9,11 @@ let pizzaLatencyTime = 0;
 let pizzaLatencyCount = 0;
 const activeUsers = new Map();
 const ACTIVE_MS = 300000; // 5 mins
+let authAttempts = { success: 0, failed: 0 };
 
 // Middleware to track requests
 function requestTracker(req, res, next) {
+  const path = req.originalUrl.split("?")[0];
   const start = Date.now();
   totalRequests += 1;
   if (req.method in methodCounts) {
@@ -23,6 +25,16 @@ function requestTracker(req, res, next) {
     latencyCount += 1;
     if (req.user) {
       activeUsers.set(req.user.id, Date.now());
+    }
+    if (
+      path === "/api/auth" &&
+      (req.method === "PUT" || req.method === "POST")
+    ) {
+      if (req.statusCode >= 200 && res.statusCode < 300) {
+        authAttempts.success += 1;
+      } else {
+        authAttempts.failed += 1;
+      }
     }
   });
   next();
@@ -76,9 +88,30 @@ setInterval(() => {
   metrics.push(
     createMetric("active_users", activeUsers.size, "1", "gauge", "asInt", {}),
   );
+  // authentication attempts
+  metrics.push(
+    createMetric(
+      "authentication_attempts",
+      authAttempts.success,
+      "1",
+      "sum",
+      "asInt",
+      { status: "success" },
+    ),
+  );
+  metrics.push(
+    createMetric(
+      "authentication_attempts",
+      authAttempts.failed,
+      "1",
+      "sum",
+      "asInt",
+      { status: "failed" },
+    ),
+  );
 
   sendMetricToGrafana(metrics);
-}, 10000).unref(); // don't keep the process alive just for metrics (lets Jest exit)
+}, 10000).unref();
 
 function createMetric(
   metricName,
