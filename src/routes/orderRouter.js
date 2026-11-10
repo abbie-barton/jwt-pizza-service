@@ -130,12 +130,13 @@ orderRouter.post(
     });
     const j = await r.json();
     // metrics
-    metrics.pizzaCreationLatency(Date.now() - start);
     if (r.ok) {
-      metrics.pizzaPurchase(success, latency, price);
+      const price = order.items.reduce((sum, item) => sum + item.price, 0);
+      metrics.pizzaPurchase('success', Date.now() - start, price, order.items.length);
     } else {
-      metrics.pizzaPurchase(failure, latency, 0);
+      metrics.pizzaPurchase('failure', Date.now() - start, 0, 0);
     }
+
     if (r.ok) {
       res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
     } else {

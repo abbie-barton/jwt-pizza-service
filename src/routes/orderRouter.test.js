@@ -71,6 +71,12 @@ test("get orders", async () => {
 });
 
 test("create an order", async () => {
+  // fake the pizza factory so the test doesn't depend on the real service
+  const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+    ok: true,
+    json: async () => ({ reportUrl: "http://factory.test/report", jwt: "1111111111" }),
+  });
+
   const order = {
     franchiseId: 1,
     storeId: 1,
@@ -83,4 +89,10 @@ test("create an order", async () => {
     .send(order);
 
   expect(createRes.status).toBe(200);
+  expect(createRes.body.jwt).toBe("1111111111");
+  expect(fetchSpy).toHaveBeenCalledWith(
+    expect.stringContaining("/api/order"),
+    expect.objectContaining({ method: "POST" }),
+  );
+  fetchSpy.mockRestore();
 });

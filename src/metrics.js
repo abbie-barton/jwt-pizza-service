@@ -1,5 +1,5 @@
 const config = require("./config");
-const os = require('os');
+const os = require("os");
 
 // Metrics stored in memory
 const methodCounts = { GET: 0, POST: 0, PUT: 0, DELETE: 0 };
@@ -11,6 +11,9 @@ let pizzaLatencyCount = 0;
 const activeUsers = new Map();
 const ACTIVE_MS = 300000; // 5 mins
 let authAttempts = { success: 0, failed: 0 };
+let pizzaRevenue = 0;
+let pizzasSold = 0;
+let pizzaCreationFailure = 0;
 
 // Middleware to track requests
 function requestTracker(req, res, next) {
@@ -111,8 +114,37 @@ setInterval(() => {
     ),
   );
   // cpu and memory usage percentage
-  metrics.push(createMetric("cpu", getCpuUsagePercentage(), "%", "gauge", "asDouble", {}))
-  metrics.push(createMetric("memory", getMemoryUsagePercentage(), "%", "gauge", "asDouble", {}))
+  metrics.push(
+    createMetric("cpu", getCpuUsagePercentage(), "%", "gauge", "asDouble", {}),
+  );
+  metrics.push(
+    createMetric(
+      "memory",
+      getMemoryUsagePercentage(),
+      "%",
+      "gauge",
+      "asDouble",
+      {},
+    ),
+  );
+  // pizzas sold and failure
+  metrics.push(
+    createMetric("pizza_purchases", pizzasSold, "1", "sum", "asInt", { status: "success" }),
+  );
+  metrics.push(
+    createMetric(
+      "pizza_purchases",
+      pizzaCreationFailure,
+      "1",
+      "sum",
+      "asInt",
+      { status: "failure" },
+    ),
+  );
+  // pizza revenue
+  metrics.push(
+    createMetric("pizza_revenue", pizzaRevenue, "1", "sum", "asDouble", {}),
+  );
 
   sendMetricToGrafana(metrics);
 }, 10000).unref();
@@ -188,11 +220,6 @@ function sendMetricToGrafana(metrics) {
     });
 }
 
-function pizzaCreationLatency(ms) {
-  pizzaLatencyTime += ms;
-  pizzaLatencyCount += 1;
-}
-
 function getCpuUsagePercentage() {
   const cpuUsage = os.loadavg()[0] / os.cpus().length;
   return Number(cpuUsage.toFixed(2) * 100);
@@ -206,4 +233,15 @@ function getMemoryUsagePercentage() {
   return Number(memoryUsage.toFixed(2));
 }
 
-module.exports = { requestTracker, pizzaCreationLatency };
+function pizzaPurchase(success, latency, price, numPizzas) {
+  pizzaLatencyTime += latency;
+  pizzaLatencyCount += 1;
+  if (success === "success") {
+    pizzasSold += numPizzas;
+  } else {
+    pizzaCreationFailure += 1;
+  }
+  pizzaRevenue += price;
+}
+
+module.exports = { requestTracker, pizzaPurchase };
