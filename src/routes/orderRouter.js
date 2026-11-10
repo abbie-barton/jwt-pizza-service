@@ -129,7 +129,13 @@ orderRouter.post(
       }),
     });
     const j = await r.json();
+    // metrics
     metrics.pizzaCreationLatency(Date.now() - start);
+    if (r.ok) {
+      metrics.pizzaPurchase(success, latency, price);
+    } else {
+      metrics.pizzaPurchase(failure, latency, 0);
+    }
     if (r.ok) {
       res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
     } else {

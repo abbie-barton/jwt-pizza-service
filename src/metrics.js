@@ -1,4 +1,5 @@
 const config = require("./config");
+const os = require('os');
 
 // Metrics stored in memory
 const methodCounts = { GET: 0, POST: 0, PUT: 0, DELETE: 0 };
@@ -30,7 +31,7 @@ function requestTracker(req, res, next) {
       path === "/api/auth" &&
       (req.method === "PUT" || req.method === "POST")
     ) {
-      if (req.statusCode >= 200 && res.statusCode < 300) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
         authAttempts.success += 1;
       } else {
         authAttempts.failed += 1;
@@ -109,6 +110,9 @@ setInterval(() => {
       { status: "failed" },
     ),
   );
+  // cpu and memory usage percentage
+  metrics.push(createMetric("cpu", getCpuUsagePercentage(), "%", "gauge", "asDouble", {}))
+  metrics.push(createMetric("memory", getMemoryUsagePercentage(), "%", "gauge", "asDouble", {}))
 
   sendMetricToGrafana(metrics);
 }, 10000).unref();
@@ -187,6 +191,19 @@ function sendMetricToGrafana(metrics) {
 function pizzaCreationLatency(ms) {
   pizzaLatencyTime += ms;
   pizzaLatencyCount += 1;
+}
+
+function getCpuUsagePercentage() {
+  const cpuUsage = os.loadavg()[0] / os.cpus().length;
+  return Number(cpuUsage.toFixed(2) * 100);
+}
+
+function getMemoryUsagePercentage() {
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const usedMemory = totalMemory - freeMemory;
+  const memoryUsage = (usedMemory / totalMemory) * 100;
+  return Number(memoryUsage.toFixed(2));
 }
 
 module.exports = { requestTracker, pizzaCreationLatency };
