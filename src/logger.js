@@ -5,12 +5,13 @@ class Logger {
     let send = res.send;
     res.send = (resBody) => {
       const logData = {
-        authorized: !!req.headers.authorization,
+        auth: !!req.headers.authorization,
         path: req.originalUrl,
         method: req.method,
-        statusCode: res.statusCode,
-        reqBody: JSON.stringify(req.body),
-        resBody: JSON.stringify(resBody),
+        status: res.statusCode,
+        req: JSON.stringify(req.body),
+        res: JSON.stringify(resBody),
+        user: req.user ? { id: req.user.id, name: req.user.name, email: req.user.email } : null
       };
       const level = this.statusToLogLevel(res.statusCode);
       this.log(level, 'http', logData);
@@ -21,7 +22,7 @@ class Logger {
   };
 
   log(level, type, logData) {
-    const labels = { component: config.source, level: level, type: type };
+    const labels = { component: config.logging.source, level: level, type: type };
     const values = [this.nowString(), this.sanitize(logData)];
     const logEvent = { streams: [{ stream: labels, values: [values] }] };
 
@@ -45,16 +46,20 @@ class Logger {
 
   sendLogToGrafana(event) {
     const body = JSON.stringify(event);
-    fetch(`${config.endpointUrl}`, {
+    fetch(`${config.logging.endpointUrl}`, {
       method: 'post',
       body: body,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.accountId}:${config.apiKey}`,
+        Authorization: `Bearer ${config.logging.accountId}:${config.logging.apiKey}`,
       },
-    }).then((res) => {
-      if (!res.ok) console.log('Failed to send log to Grafana');
-    });
+    })
+      .then((res) => {
+        if (!res.ok) console.log('Failed to send log to Grafana');
+      })
+      .catch((error) => {
+        console.log('Error sending log to Grafana:', error.message);
+      });
   }
 }
 module.exports = new Logger();
