@@ -1,6 +1,7 @@
 const express = require("express");
 const config = require("../config.js");
 const metrics = require("../metrics.js");
+const logger = require("../logger.js");
 const { Role, DB } = require("../database/database.js");
 const { authRouter } = require("./authRouter.js");
 const { asyncHandler, StatusCodeError } = require("../endpointHelper.js");
@@ -129,23 +130,39 @@ orderRouter.post(
       }),
     });
     const j = await r.json();
+    // logger
+    const loggerBody = {
+      path: `${config.factory.url}/api/order`,
+      method: "POST",
+      user: logger.currentUser(),
+      status: r.status,
+      req: {
+        diner: { id: req.user.id, name: req.user.name, email: req.user.email },
+        order,
+      },
+      res: j,
+    };
+    logger.log(r.ok ? "info" : "error", "factory", loggerBody);
     // metrics
     if (r.ok) {
       const price = order.items.reduce((sum, item) => sum + item.price, 0);
-      metrics.pizzaPurchase('success', Date.now() - start, price, order.items.length);
+      metrics.pizzaPurchase(
+        "success",
+        Date.now() - start,
+        price,
+        order.items.length,
+      );
     } else {
-      metrics.pizzaPurchase('failure', Date.now() - start, 0, 0);
+      metrics.pizzaPurchase("failure", Date.now() - start, 0, 0);
     }
 
     if (r.ok) {
       res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
     } else {
-      res
-        .status(500)
-        .send({
-          message: "Failed to fulfill order at factory",
-          followLinkToEndChaos: j.reportUrl,
-        });
+      res.status(500).send({
+        message: "Failed to fulfill order at factory",
+        followLinkToEndChaos: j.reportUrl,
+      });
     }
   }),
 );

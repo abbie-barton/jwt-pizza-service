@@ -1,5 +1,5 @@
-const config = require('./config');
-const { AsyncLocalStorage } = require('async_hooks');
+const config = require("./config");
+const { AsyncLocalStorage } = require("async_hooks");
 const requestContext = new AsyncLocalStorage();
 
 class Logger {
@@ -13,10 +13,10 @@ class Logger {
         status: res.statusCode,
         req: JSON.stringify(req.body),
         res: JSON.stringify(resBody),
-        user: req.user ? { id: req.user.id, name: req.user.name, email: req.user.email } : null
+        user: this.currentUser(),
       };
       const level = this.statusToLogLevel(res.statusCode);
-      this.log(level, 'http', logData);
+      this.log(level, "http", logData);
       res.send = send;
       return res.send(resBody);
     };
@@ -24,7 +24,11 @@ class Logger {
   };
 
   log(level, type, logData) {
-    const labels = { component: config.logging.source, level: level, type: type };
+    const labels = {
+      component: config.logging.source,
+      level: level,
+      type: type,
+    };
     const values = [this.nowString(), this.sanitize(logData)];
     const logEvent = { streams: [{ stream: labels, values: [values] }] };
 
@@ -32,9 +36,9 @@ class Logger {
   }
 
   statusToLogLevel(statusCode) {
-    if (statusCode >= 500) return 'error';
-    if (statusCode >= 400) return 'warn';
-    return 'info';
+    if (statusCode >= 500) return "error";
+    if (statusCode >= 400) return "warn";
+    return "info";
   }
 
   nowString() {
@@ -43,30 +47,35 @@ class Logger {
 
   sanitize(logData) {
     logData = JSON.stringify(logData);
-    return logData.replace(/\\"password\\":\s*\\"[^"]*\\"/g, '\\"password\\": \\"*****\\"');
+    return logData.replace(
+      /\\"password\\":\s*\\"[^"]*\\"/g,
+      '\\"password\\": \\"*****\\"',
+    );
   }
 
   sendLogToGrafana(event) {
     const body = JSON.stringify(event);
     fetch(`${config.logging.endpointUrl}`, {
-      method: 'post',
+      method: "post",
       body: body,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${config.logging.accountId}:${config.logging.apiKey}`,
       },
     })
       .then((res) => {
-        if (!res.ok) console.log('Failed to send log to Grafana');
+        if (!res.ok) console.log("Failed to send log to Grafana");
       })
       .catch((error) => {
-        console.log('Error sending log to Grafana:', error.message);
+        console.log("Error sending log to Grafana:", error.message);
       });
   }
 
   currentUser() {
     const req = requestContext.getStore();
-    return req && req.user ? { id: req.user.id, name: req.user.name, email: req.user.email } : null;
+    return req && req.user
+      ? { id: req.user.id, name: req.user.name, email: req.user.email }
+      : null;
   }
 }
 module.exports = new Logger();
