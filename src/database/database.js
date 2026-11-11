@@ -1,6 +1,7 @@
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
 const config = require("../config.js");
+const logger = require("../logger.js");
 const { StatusCodeError } = require("../endpointHelper.js");
 const { Role } = require("../model/model.js");
 const dbModel = require("./dbModel.js");
@@ -147,9 +148,7 @@ class DB {
         await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
           userId,
         ]);
-        await this.query(connection, `DELETE FROM user WHERE id=?`, [
-          userId,
-        ]);
+        await this.query(connection, `DELETE FROM user WHERE id=?`, [userId]);
         await connection.commit();
       } catch {
         await connection.rollback();
@@ -455,6 +454,7 @@ class DB {
   }
 
   async query(connection, sql, params) {
+    logger.log("info", "db", { sql, user: logger.currentUser() });
     const [results] = await connection.execute(sql, params);
     return results;
   }

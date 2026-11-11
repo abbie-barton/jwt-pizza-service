@@ -1,4 +1,6 @@
 const config = require('./config');
+const { AsyncLocalStorage } = require('async_hooks');
+const requestContext = new AsyncLocalStorage();
 
 class Logger {
   httpLogger = (req, res, next) => {
@@ -18,7 +20,7 @@ class Logger {
       res.send = send;
       return res.send(resBody);
     };
-    next();
+    requestContext.run(req, next);
   };
 
   log(level, type, logData) {
@@ -60,6 +62,11 @@ class Logger {
       .catch((error) => {
         console.log('Error sending log to Grafana:', error.message);
       });
+  }
+
+  currentUser() {
+    const req = requestContext.getStore();
+    return req && req.user ? { id: req.user.id, name: req.user.name, email: req.user.email } : null;
   }
 }
 module.exports = new Logger();
